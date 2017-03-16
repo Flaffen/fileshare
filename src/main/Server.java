@@ -69,6 +69,7 @@ public class Server {
 		DatagramPacket incoming = new DatagramPacket(buffer, buffer.length);
 		
 		System.out.println("Running server on port " + port);
+		System.out.println();
 		
 		while (true) {
 			server.receive(incoming);
@@ -77,7 +78,7 @@ public class Server {
 			InetAddress packetAddress = incoming.getAddress();
 			int packetPort = incoming.getPort();
 			
-			System.out.println(packetAddress.getHostAddress() + " : " + port + " - " + s);
+			System.out.println(packetAddress.getHostAddress() + " : " + packetPort + " - " + s);
 			
 			DatagramPacket dPacket = new DatagramPacket((packets.size() + "").getBytes(), (packets.size() + "").getBytes().length, packetAddress, packetPort);
 			server.send(dPacket);
@@ -85,24 +86,19 @@ public class Server {
 			dPacket = new DatagramPacket(fileName.getBytes(), fileName.getBytes().length, packetAddress, packetPort);
 			server.send(dPacket);
 			
-			for (String packet : packets) {
-				DatagramPacket dp = new DatagramPacket(packet.getBytes(), packet.getBytes().length, packetAddress, packetPort);
-				server.send(dp);
-			}
-			server.send(new DatagramPacket("STOP".getBytes(), "STOP".getBytes().length, packetAddress, packetPort));
+//			for (String packet : packets) {
+//				DatagramPacket dp = new DatagramPacket(packet.getBytes(), packet.getBytes().length, packetAddress, packetPort);
+//				server.send(dp);
+//			}
+//			server.send(new DatagramPacket("STOP".getBytes(), "STOP".getBytes().length, packetAddress, packetPort));
 			
-			server.setSoTimeout(5000);
-			try {
-				
-			}
-			
-			
-			System.out.println("Missing");
+			System.out.println("Sending the file... ");
+			int percentCounter = 0;
 			while (true) {
 				byte[] bufferMiss = new byte[2048];
 				DatagramPacket reqMissing = new DatagramPacket(bufferMiss, bufferMiss.length);
 				
-				server.receive(reqMissing);				
+				server.receive(reqMissing);
 				
 				byte[] reqData = reqMissing.getData();
 				String packet = new String(reqData, 0, bufferMiss.length).trim();
@@ -110,13 +106,20 @@ public class Server {
 				if (packet.startsWith("STOP")) break;
 				
 				int missingPacket = Integer.parseInt(packet.split(" ")[1]);
-				System.out.println("Client requests missing packet with id " + missingPacket);
 				
 				DatagramPacket response = new DatagramPacket(packets.get(missingPacket-1).getBytes(), packets.get(missingPacket-1).getBytes().length, reqMissing.getAddress(), reqMissing.getPort());
 				server.send(response);
+				/**
+				if (missingPacket % (packets.size() / 100) == 0) {
+					percentCounter++;
+					System.out.print("Sending " + percentCounter + "%\r");
+				}
+				*/
 			}
+			System.out.println();
 			
 			System.out.println("All packets have been sent.");
+			System.out.println();
 		}
 	}
 }
