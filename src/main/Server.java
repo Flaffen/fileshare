@@ -9,11 +9,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Random;
 import java.util.Scanner;
 
 public class Server {
 	public static void main(String... args) throws IOException, InterruptedException {
-		int port = args.length > 0 ? Integer.parseInt(args[0]) : 8080;
+		Random rand = new Random();
+		int port = args.length > 0 ? Integer.parseInt(args[0]) : rand.nextInt(100) + 50000;
 		DatagramSocket server = new DatagramSocket(port);
 		Scanner scanner = null;
 		String filePath = null;
@@ -32,7 +34,8 @@ public class Server {
 		
 		Path file = Paths.get(filePath);
 		byte[] fileBytes = FileConverter.convertToByteArray(file);
-		System.out.println("File size: " + fileBytes.length);
+		String fileSize = fileBytes.length + "";
+		System.out.println("File size: " + fileSize);
 		
 		String fileName = file.getFileName().toString();
 		System.out.println("Filename: " + fileName);
@@ -78,6 +81,11 @@ public class Server {
 			InetAddress packetAddress = incoming.getAddress();
 			int packetPort = incoming.getPort();
 			
+			if (s.startsWith("SEEK")) {
+				server.send(new DatagramPacket("CONFIRMED".getBytes(), "CONFIRMED".getBytes().length, packetAddress, packetPort));
+				continue;
+			}
+			
 			System.out.println(packetAddress.getHostAddress() + " : " + packetPort + " - " + s);
 			
 			DatagramPacket dPacket = new DatagramPacket((packets.size() + "").getBytes(), (packets.size() + "").getBytes().length, packetAddress, packetPort);
@@ -85,6 +93,10 @@ public class Server {
 			
 			dPacket = new DatagramPacket(fileName.getBytes(), fileName.getBytes().length, packetAddress, packetPort);
 			server.send(dPacket);
+			
+			dPacket = new DatagramPacket(fileSize.getBytes(), fileSize.getBytes().length, packetAddress, packetPort);
+			server.send(dPacket);
+			System.out.println(fileSize);
 			
 //			for (String packet : packets) {
 //				DatagramPacket dp = new DatagramPacket(packet.getBytes(), packet.getBytes().length, packetAddress, packetPort);

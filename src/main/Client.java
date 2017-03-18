@@ -8,6 +8,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketTimeoutException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,14 +23,39 @@ public class Client {
 		
 		try {
 			sock = new DatagramSocket();
-			// sock.setSoTimeout(10000);
+			
+			logn("Finding port...");
+			int PORT_RANGE_START = 50000;
+			int PORT_RANGE_FINISH = 50100;
+			sock.setSoTimeout(10);
+			for (int i = PORT_RANGE_START; i <= PORT_RANGE_FINISH; i++) {
+				log("Checking " + i + "\r");
+				dp = new DatagramPacket("SEEK".getBytes(), "SEEK".getBytes().length, host, i);
+				DatagramPacket rec = new DatagramPacket(new byte[65536], new byte[65536].length);
+				
+				try {
+					sock.send(dp);
+					sock.receive(rec);
+					
+					String response = new String(rec.getData()).trim();
+					if (response.startsWith("CONFIRMED")) {
+						port = rec.getPort();
+						break;
+					}
+				} catch (SocketTimeoutException e) {
+					continue;
+				}
+			}
+			logn("");
+			sock.setSoTimeout(0);
+			logn("Port: " + port);
 			
 			logn("Sending 'HI' to a server...");
 			dp = new DatagramPacket("HI".getBytes(), "HI".getBytes().length, host, port);
 			sock.send(dp);
 			
 			logn("Waiting for headers...");
-			byte[] buffer = new byte[2048];
+			byte[] buffer = new byte[65536];
 			
 			dp = new DatagramPacket(buffer, buffer.length);
 			sock.receive(dp);
@@ -39,54 +65,17 @@ public class Client {
 			sock.receive(dp);
 			String fileName = new String(dp.getData(), 0, buffer.length).trim();
 			
+			buffer = new byte[65536];
+			dp = new DatagramPacket(buffer, buffer.length);
+			sock.receive(dp);
+			int fileLength = Integer.parseInt(new String(dp.getData(), 0, buffer.length).trim());
+			
 			logn("Headers received.");
 			logn("File name: " + fileName + ", number of packets to send: " + numberOfPackets);
 			
 			logn("Downloading the file...");
-			// int totalPackets = 0;
-			// int nextId = 1;
 			ArrayList<Byte> totalBytes = new ArrayList<>();
-			// ArrayList<Integer> allIds = new ArrayList<>();
 			HashMap<Integer, String> packetVault = new HashMap<>();
-//			while (true) {
-//				buffer = new byte[65536];
-//				DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
-//				sock.setSoTimeout(2000);
-//				try {
-//					sock.receive(reply);
-//				} catch (SocketTimeoutException e) {
-//					System.out.println("Socket timeout. Expected id: " + nextId);
-//					buffer = new byte[65536];
-//					reply = new DatagramPacket(buffer, buffer.length);
-//					sock.receive(reply);
-////					sock.send(new DatagramPacket("STOP".getBytes(), "STOP".getBytes().length, host, port));
-////					break;
-//				}
-//				
-//				byte[] data = reply.getData();
-//				String packet = new String(data, 0, buffer.length).trim();
-//				
-//				if (packet.startsWith("STOP")) break;
-//				
-//				int id = Integer.parseInt(packet.split(" ")[0]);
-//				allIds.add(id);
-//				
-//				if (id == nextId) {
-//					nextId++;
-//				} else {
-//					allIds.add(nextId + 1);
-//				}
-//				
-//				String body = packet.substring(packet.indexOf(" ") + 1);
-//				
-//				packetVault.put(id, body);
-//				totalPackets++;
-//				if (totalPackets % (numberOfPackets / 100) == 0) {
-//					percentCounter++;
-//					System.out.print(percentCounter + "% Downloading...");
-//					System.out.print("\r");
-//				}
-//			}
 			
 			int packets = 0;
 			int percentCounter = 0;
@@ -109,9 +98,6 @@ public class Client {
 						buffer = new byte[65536];
 						dp = new DatagramPacket(buffer, buffer.length);
 						sock.receive(dp);
-//						System.out.println("Ooops. It looks like something went wrong. Well, nothing is infinite :)");
-//						sock.send(new DatagramPacket("STOP".getBytes(), "STOP".getBytes().length, host, port));
-//						System.exit(-1);
 					}
 					
 					String packet = new String(dp.getData(), 0, buffer.length).trim();
@@ -119,12 +105,11 @@ public class Client {
 					String body = packet.substring(packet.indexOf(" ") + 1);
 					
 					packetVault.put(id, body);
-					/**
-					if (packets % (numberOfPackets / 100) == 0) {
-						percentCounter++;
-						System.out.print("Downloading " + percentCounter + "%\r");
-					}
-					*/
+//					logn(fileLength + " " + Math.round(packet.length()));
+//					if (fileLength % (packet.length()) == 0) {
+//						percentCounter++;
+//						log("Downloading " + percentCounter + "%\r");
+//					}
 				}
 			}
 			System.out.println();
